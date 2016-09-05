@@ -40,6 +40,7 @@ def get(bot, update):
     querys[id] = {}
     weeks_keyboard = []
 
+    botan.track(token=botan_token, uid=update.message.from_user.id, message=update.message.text, name='Get Schedule')
 
     # Проверяем есть ли расписание на текущую неделю
     dateStart = datetime.date.today()
@@ -60,17 +61,19 @@ def get(bot, update):
 
     weeks_keyboard.append(["Отмена"])
 
-    if len(weeks_keyboard) > 0:
+    if len(weeks_keyboard) > 1:
         bot.sendMessage(update.message.chat_id,
                         text='Выберите неделю 🗓',
                         reply_markup=ReplyKeyboardMarkup(weeks_keyboard, one_time_keyboard=True))
+        return WEEK
     else:
         bot.sendMessage(update.message.chat_id,
                         text='Актуальных расписаний на данный момент нет')
+        return ConversationHandler.END
     
-    botan.track(token=botan_token, uid=update.message.from_user.id, message=update.message.text, name='Get Schedule')
+    
 
-    return WEEK
+    
 
 
 def week(bot, update):
