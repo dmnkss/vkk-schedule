@@ -38,10 +38,35 @@ def next_weekday(d, weekday):
 def get(bot, update):
     id = update.message.chat_id
     querys[id] = {}
-    reply_keyboard = [['Текущая неделя'],['Следующая неделя']]
-    bot.sendMessage(update.message.chat_id,
-                    text='Выберите неделю 🗓',
-                    reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
+    weeks_keyboard = []
+
+
+    # Проверяем есть ли расписание на текущую неделю
+    dateStart = datetime.date.today()
+    dateStart = dateStart - datetime.timedelta(days=dateStart.weekday())
+    dateEnd = dateStart + datetime.timedelta(days=6)
+    isExists = Schedule.select().where(Schedule.middleDate.between(dateStart,dateEnd)).exists()
+    if isExists:
+       weeks_keyboard.append(['Текущая неделя'])
+
+    # Проверяем есть ли расписание на следующую неделю
+    dateNow = datetime.date.today()
+    dateStart = next_weekday(dateNow,0)
+    dateEnd = next_weekday(dateStart,6)
+    querys[id]['week'] = [dateStart,dateEnd]
+    isExists = Schedule.select().where(Schedule.middleDate.between(dateStart,dateEnd)).exists()
+    if isExists:
+            weeks_keyboard.append(['Следующая неделя'])
+
+    weeks_keyboard.append(["Отмена"])
+
+    if len(weeks_keyboard) > 0:
+        bot.sendMessage(update.message.chat_id,
+                        text='Выберите неделю 🗓',
+                        reply_markup=ReplyKeyboardMarkup(weeks_keyboard, one_time_keyboard=True))
+    else:
+        bot.sendMessage(update.message.chat_id,
+                        text='Актуальных расписаний на данный момент нет')
     
     botan.track(token=botan_token, uid=update.message.from_user.id, message=update.message.text, name='Get Schedule')
 
@@ -80,7 +105,7 @@ def week(bot, update):
                         text='Расписание на следующую неделю недоступно',
                         reply_markup=ReplyKeyboardMarkup(schelude_keyboard, one_time_keyboard=True))
     if continueConv:
-        reply_keyboard = [["ИС","К"],["Г","Р"],["Б","Ю"],["ТОП"]]
+        reply_keyboard = [["ИС","К"],["Г","Р"],["Б","Ю"],["ТОП"],["Отмена"]]
         bot.sendMessage(update.message.chat_id,
                         text='Выберите специальность 🕵',
                         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
@@ -104,6 +129,7 @@ def group(bot, update):
         if querys[id]['group'] in course:
             coursesArr.append(course)
     reply_keyboard = splitArr(coursesArr,2)
+    reply_keyboard.append(["Отмена"])
     bot.sendMessage(update.message.chat_id,
                     text='Выберите группу 🎓',
                     reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
@@ -114,7 +140,12 @@ def course(bot, update):
     id = update.message.chat_id
     text = update.message.text
     querys[id]['course'] = update.message.text
-    reply_keyboard = [['ПН',"ВТ"],["СР","ЧТ"],["ПТ","Вся неделя"]]
+    reply_keyboard = [
+                        ['Понедельник',"Вторник"],
+                        ["Среда","Четверг"],
+                        ["Пятница","Вся неделя"],
+                        ["Отмена"]]
+
     bot.sendMessage(update.message.chat_id,
                     text='Выберите учебный день 📅',
                     reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
@@ -130,7 +161,7 @@ def day(bot, update):
     outTxt = ''
     try:
         if querys[id]['day'] == 'Вся неделя':
-            daysArrs = ['ПН','ВТ','СР','ЧТ','ПТ']
+            daysArrs = ['Понедельник','Вторник','Среда','Четверг','Пятница']
             for day in daysArrs:
                 outTxt += '\n📅{}📅'.format(day)
                 subCount = 1
@@ -167,7 +198,8 @@ def error(bot, update, error):
 # Диалог отменяет по команде /cancel
 def cancel(bot, update):
     bot.sendMessage(update.message.chat_id,
-                    text='Операция отменена')
+                    text='Операция отменена',
+                    reply_markup=ReplyKeyboardMarkup(schelude_keyboard, one_time_keyboard=True))
 
     return ConversationHandler.END
 
@@ -249,14 +281,15 @@ class BotThread:
             entry_points=[CommandHandler('get', get)
             ,RegexHandler('^(Расписание|Получить расписание|расписание|📋 Получить расписание 📋)$', get)],
 
+            # Принимаем любой текст кроме слова "Отмена"
             states={
-                WEEK: [MessageHandler([Filters.text], week)],
-                GROUP: [MessageHandler([Filters.text], group)],
-                COURSE: [MessageHandler([Filters.text], course)],
-                DAY: [RegexHandler('^(ПН|ВТ|СР|ЧТ|ПТ|Вся неделя)$', day)]
+                WEEK: [RegexHandler('^((?!Отмена).)*$', week)],     
+                GROUP: [RegexHandler('^((?!Отмена).)*$', group)],
+                COURSE: [RegexHandler('^((?!Отмена).)*$', course)],
+                DAY: [RegexHandler('^(Понедельник|Вторник|Среда|Четверг|Пятница|Вся неделя)$', day)]
             },
 
-            fallbacks=[CommandHandler('cancel', cancel)]
+            fallbacks=[CommandHandler('cancel', cancel),RegexHandler('^(Отмена)$', cancel)]
         )
         
         dp.add_handler(conv_handler)
