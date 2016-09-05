@@ -77,7 +77,8 @@ def week(bot, update):
             continueConv = True
         else: 
             bot.sendMessage(update.message.chat_id,
-                        text='Расписание на следующую неделю недоступно')
+                        text='Расписание на следующую неделю недоступно',
+                        reply_markup=ReplyKeyboardMarkup(schelude_keyboard, one_time_keyboard=True))
     if continueConv:
         reply_keyboard = [["ИС","К"],["Г","Р"],["Б","Ю"],["ТОП"]]
         bot.sendMessage(update.message.chat_id,
