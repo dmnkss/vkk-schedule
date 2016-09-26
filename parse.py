@@ -45,6 +45,7 @@ def getSchelude(file):
     sh = file.sheet_by_index(0)
     schelude = {}
     cellsArr = ['']
+    for i in range(0,col_range):
         cell = sh.cell_value(rowx=4, colx=i) 
         if cell != '':
             if cell in cellsArr:
